@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+
+  <script src="https://unpkg.com/crossfilter2@1.4/crossfilter.js"></script>
+</head>
+<!-- http://blog.rusty.io/2012/09/17/crossfilter-tutorial/ -->
+<body>
+  <div></div>
+  <script>
+    var livingThings = crossfilter([
+      // Fact data.
+      { name: "Rusty",  type: "human", legs: 2 },
+      { name: "Alex",   type: "human", legs: 2 },
+      { name: "Lassie", type: "dog",   legs: 4 },
+      { name: "Lassie", type: "dog",   legs: 4 },
+      { name: "Spot",   type: "dog",   legs: 4 },
+      { name: "Polly",  type: "bird",  legs: 2 },
+      { name: "Fiona",  type: "plant", legs: 0 }
+    ]);
+
+    var n = livingThings.groupAll().reduceCount().value();
+    console.log("There are " + n + " living things in my house.") // 7
+
+    var legs = livingThings.groupAll().reduceSum(function(fact) { return fact.legs; }).value()
+    console.log("There are " + legs + " legs in my house.") // 18
+
+    var typeDimension = livingThings.dimension(function(d) { return d.type; });
+    console.log(typeDimension.top(Infinity));
+
+    var typeGroupVal = typeDimension.groupAll().reduceCount().value();
+    console.log("typeGroupVal", typeGroupVal);
+
+    typeDimension.filter("dog");
+
+    var n = livingThings.groupAll().reduceCount().value();
+    console.log("There are " + n + " dogs in my house.") // 3
+    typeDimension.filterAll();
+
+    var countMeasure = typeDimension.group().reduceCount();
+    console.log(countMeasure.all());
+    var a = countMeasure.top(4);
+    console.log("There are " + a[0].value + " " + a[0].key + "(s) in my house.");
+    console.log("There are " + a[1].value + " " + a[1].key + "(s) in my house.");
+    console.log("There are " + a[2].value + " " + a[2].key + "(s) in my house.");
+    console.log("There are " + a[3].value + " " + a[3].key + "(s) in my house.");
+
+
+
+    
+
+  </script>
+</body>

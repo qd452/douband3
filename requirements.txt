@@ -1,0 +1,6 @@
+retrying
+requests
+bs4
+fake_useragent
+flask
+flask-wtf
