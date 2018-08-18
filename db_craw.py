@@ -16,29 +16,16 @@ from retrying import retry
 from rotating_proxies import RoProxy
 
 
-# print(proxydct)
-
-# urlappending = "?start=1140&sort=time&rating=all&filter=all&mode=grid"
-#
-# r = requests.get(url)
-#
-# soup = BeautifulSoup(r.content, 'html.parser')
-#
-# soup.select(".grid-view .item")[0]
-#
-# url = soup.select(".grid-view .item .title")[0].a['href']
-#
-# name = soup.select(".grid-view .item .title")[0].em.string
-# name = soup.select(".grid-view .item .title")[0].em.contents[0]
-
-
 def get_total_page_num(baseurl, proxies):
+    # known bug:
+    # for those movie list <=15, cannot analysis, cause not paginator ....
     proxydct = proxies.get_new_proxydct()
     retry = 0
-    while retry <= 30:
+    while retry <= 100:
         try:
             print(proxydct)
-            r = requests.get(baseurl, proxies=proxydct, timeout=2)
+            r = requests.get(baseurl, proxies=proxydct,
+                             timeout=1)  # less timeout means better proxy
             soup = BeautifulSoup(r.content, 'html.parser')
             pg_num = int(
                 soup.select(".paginator .thispage")[0]['data-total-page'])
@@ -82,53 +69,103 @@ def crawl_single_page(baseurl, proxydct, page_num):
     return mvlst_sp
 
 
-def seq_crawl(baseurl):
-    mvlst = []
-    mvinfo = True
-    i = 0
-    while mvinfo:
-        url = baseurl + "?start={}&sort=time&rating=all&filter=all&mode=grid".format(
-            15 * i)
-        #        print(url)
-        r = requests.get(url, proxies=proxydct)
-        i += 1
+@retry(stop_max_attempt_number=5)
+def _get_movie_info(proxydct, movieurl):
+    movie_bp = 'https://movie.douban.com/subject/'
+    if not movieurl.startswith(movie_bp):
+        movieurl = movie_bp + movieurl
+    r = requests.get(movieurl, proxies=proxydct)
+    if r.status_code == 404:
+        return {'name': None,
+                'director': [],
+                'actor': [],
+                'genre': [],
+                'country': [],
+                'releasedate': None,
+                'rating': None,
+                'mv_url': movieurl
+                }
+    else:
         soup = BeautifulSoup(r.content, 'html.parser')
-        mvinfo = soup.select(".grid-view .item .info")
-        if mvinfo:
-            for mv in mvinfo:
-                #    mv = soup.select(".grid-view .item .info")[0]
-                mv_url = mv.select(".title a")[0]['href']
-                name = mv.select(".title em")[0].string
-                #    rating = int(mv.findAll("span", attrs={"class": lambda x: x.startswith("rating")})[0]['class'][0][6])
-                rating = mv.find("span", attrs={"class": re.compile("rating*")})
-                if rating:
-                    rating_user = int(rating['class'][0][6])
-                else:
-                    rating_user = None
-                date_view = mv.find("span", attrs={"class": "date"}).string
 
-                mvlst.append({"mv_url": mv_url,
-                              "name": name,
-                              "rating_my": rating_user,
-                              "date_view": date_view})
-        else:
-            break
-    #        print([x['name'] for x in mvlst])
-    return mvlst
+        info = soup.select('#info')[0]
+        tolist = lambda txt: [x.strip() for x in txt.split('/')]
+        moviename = soup.select('h1 span')[0].text
+        try:
+            director = tolist(
+                info.find('span', text='导演').next_sibling.next_sibling.text)
+        except:
+            director = []  # 某些纪录片没有导演
+        # or
+        # director = [x.text for x in info.findAll('a', attrs={'rel':'v:directedBy'})]
+        try:
+            actor = tolist(
+                info.find('span', text='主演').next_sibling.next_sibling.text)
+        except:
+            actor = []  # 某些纪录片咩有演员
+
+        try:
+            genre = [x.string for x in
+                     info.findAll('span', attrs={"property": "v:genre"})]
+        except:
+            genre = []
+        try:
+            country = tolist(info.find('span', text='制片国家/地区:').next_sibling)
+        except:
+            country = []
+        try:
+            releasedate = info.findAll('span',
+                                       attrs={
+                                           'property': 'v:initialReleaseDate'})
+            releasedate = [x.text for x in releasedate][0].split('(')[
+                0]  # note: get only the 1st date
+        except:
+            releasedate = None
+
+        movierating = soup.find('strong', attrs={"property": "v:average"}).text
+        movieinfo = {'name': moviename,
+                     'director': director,
+                     'actor': actor,
+                     'genre': genre,
+                     'country': country,
+                     'releasedate': releasedate,
+                     'rating': movierating,
+                     'mv_url': movieurl
+                     }
+    return movieinfo
 
 
-def test_threadpool():
-    def foo(a, b):
-        return [a] * b
+def get_movie_info(proxydct, movieurl):
+    try:
+        r = _get_movie_info(proxydct, movieurl)
+    except:
+        r = {'mv_url': movieurl}
+    return r
 
-    rslt = []
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        r = executor.map(partial(foo, 3), range(10))
 
-        for _ in r:
-            rslt.extend(_)
+def get_movie_detail(mv_urls, proxydct, retry=1):
+    final_mvdetail = []
 
-    return rslt
+    try_c = 0
+    while mv_urls:
+        if try_c > retry:
+            return final_mvdetail
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            r = executor.map(partial(get_movie_info, proxydct),
+                             mv_urls)
+
+            for _ in r:
+                final_mvdetail.append(_)
+
+            mv_urls = [x.get('mv_url') for x in final_mvdetail if
+                       not x.get('name')]
+            final_mvdetail = [x for x in final_mvdetail if x.get('name')]
+            print(mv_urls)
+
+        try_c += 1
+
+    return final_mvdetail
 
 
 def crawl_movelist(baseurl, proxies):
@@ -144,7 +181,13 @@ def crawl_movelist(baseurl, proxies):
             #            print(_)
             final_mvlst.extend(_)  # like sort(), extend list inplace
 
-    return final_mvlst
+    mv_urls = [x['mv_url'] for x in final_mvlst]
+    print(len(mv_urls))
+    print(mv_urls[0])
+
+    final_mvdetail = get_movie_detail(mv_urls, proxydct)
+
+    return final_mvlst, final_mvdetail
 
 
 def main(baseurl):
@@ -159,10 +202,14 @@ def main(baseurl):
 
 if __name__ == "__main__":
     baseurl = "https://movie.douban.com/people/JiaU_Dong/collect"
+#    baseurl = 'https://movie.douban.com/people/qiusebolianbo/collect'
+#    baseurl = 'https://movie.douban.com/people/150241197/collect'  # only 5 movie, cuase bug
+#    baseurl = 'https://movie.douban.com/people/122731963/collect'  # 174 movies
 
     proxies = RoProxy()
     t_start = time.time()
-    r = crawl_movelist(baseurl, proxies)
+    mv, mv_detial = crawl_movelist(baseurl, proxies)
     t_end = time.time()
     print('Total took {}'.format(t_end - t_start))
-    print(r)
+#    print(mv)
+#    print(mv_detial)
