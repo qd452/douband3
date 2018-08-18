@@ -75,6 +75,7 @@ def _get_movie_info(proxydct, movieurl):
     if not movieurl.startswith(movie_bp):
         movieurl = movie_bp + movieurl
     r = requests.get(movieurl, proxies=proxydct)
+    print("{}, {}".format(movieurl, r.status_code))
     if r.status_code == 404:
         return {'name': None,
                 'director': [],
@@ -122,7 +123,10 @@ def _get_movie_info(proxydct, movieurl):
         except:
             releasedate = None
 
-        movierating = soup.find('strong', attrs={"property": "v:average"}).text
+        try:
+            movierating = soup.find('strong', attrs={"property": "v:average"}).text
+        except:
+            movierating = None # 建党伟业 没有评分。。。　
         movieinfo = {'name': moviename,
                      'director': director,
                      'actor': actor,
@@ -139,7 +143,15 @@ def get_movie_info(proxydct, movieurl):
     try:
         r = _get_movie_info(proxydct, movieurl)
     except:
-        r = {'mv_url': movieurl}
+        r =  {'name': None,
+                'director': [],
+                'actor': [],
+                'genre': [],
+                'country': [],
+                'releasedate': None,
+                'rating': None,
+                'mv_url': movieurl
+                }
     return r
 
 
@@ -151,17 +163,17 @@ def get_movie_detail(mv_urls, proxydct, retry=1):
         if try_c > retry:
             return final_mvdetail
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=100) as executor:
             r = executor.map(partial(get_movie_info, proxydct),
                              mv_urls)
 
-            for _ in r:
-                final_mvdetail.append(_)
+        for _ in r:
+            final_mvdetail.append(_)
 
-            mv_urls = [x.get('mv_url') for x in final_mvdetail if
-                       not x.get('name')]
-            final_mvdetail = [x for x in final_mvdetail if x.get('name')]
-            print(mv_urls)
+        mv_urls = [x.get('mv_url') for x in final_mvdetail if
+                   not x.get('name')]
+        final_mvdetail = [x for x in final_mvdetail if x.get('name')]
+        print(mv_urls)
 
         try_c += 1
 
@@ -177,9 +189,9 @@ def crawl_movelist(baseurl, proxies):
     with ThreadPoolExecutor(max_workers=30) as executor:
         r = executor.map(partial(crawl_single_page, baseurl, proxydct),
                          range(pg_num))
-        for _ in r:
-            #            print(_)
-            final_mvlst.extend(_)  # like sort(), extend list inplace
+    for _ in r:
+        #            print(_)
+        final_mvlst.extend(_)  # like sort(), extend list inplace
 
     mv_urls = [x['mv_url'] for x in final_mvlst]
     print(len(mv_urls))
@@ -202,9 +214,9 @@ def main(baseurl):
 
 if __name__ == "__main__":
     baseurl = "https://movie.douban.com/people/JiaU_Dong/collect"
-#    baseurl = 'https://movie.douban.com/people/qiusebolianbo/collect'
-#    baseurl = 'https://movie.douban.com/people/150241197/collect'  # only 5 movie, cuase bug
-#    baseurl = 'https://movie.douban.com/people/122731963/collect'  # 174 movies
+    #    baseurl = 'https://movie.douban.com/people/qiusebolianbo/collect'
+    #    baseurl = 'https://movie.douban.com/people/150241197/collect'  # only 5 movie, cuase bug
+    #    baseurl = 'https://movie.douban.com/people/122731963/collect'  # 174 movies
 
     proxies = RoProxy()
     t_start = time.time()
