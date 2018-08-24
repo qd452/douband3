@@ -20,25 +20,38 @@ def index():
 
         u = User.query.filter_by(name=username).first()
         if not u:
-            baseurl = '{}{}/collect'.format(urlprefix, username)
-
-            proxies = RoProxy()
-            print(baseurl)
-            collection, proxydct = get_user_collection(baseurl, proxies)
-            print('new', collection)
             u = User(username)
             db.session.add(u)
             db.session.commit()
+
+        db_collection_num = u.collections.count()
+
+        baseurl = '{}{}/collect'.format(urlprefix, username)
+
+        proxies = RoProxy()
+        mv_num, pg_num, proxydct = get_total_page_num(baseurl, proxies)
+
+        if db_collection_num < mv_num:
+            # need to crawl
+            # todo: pg_num here can be modified based on the diff btw db_collection_num & mv_num
+            collection, proxydct = get_user_collection(baseurl, pg_num, proxydct)
+            print('new', collection)
+
             u = User.query.filter_by(name=username).first()
             print(u.id)
             for col in collection:
-                newcollection = UserCollection(u.id,
-                                               col['mv_url'],
-                                               col['name'],
-                                               col['date_view'],
-                                               col['rating_my'])
-                db.session.add(newcollection)
-                db.session.commit()
+                if not UserCollection.query.filter_by(movieurl=col['mv_url'], user_id=u.id).first():
+                    if not Movie.query.filter_by(url=col['mv_url']).first():
+                        new_mv_patial_info = Movie(url=col['mv_url'], name=col['name'])
+                        db.session.add(new_mv_patial_info)
+                        db.session.commit()
+                    newcollection = UserCollection(u.id,
+                                                   col['mv_url'],
+                                                   col['name'],
+                                                   col['date_view'],
+                                                   col['rating_my'])
+                    db.session.add(newcollection)
+                    db.session.commit()
 
         return redirect(url_for('dbanalyst.user', username=username))
     else:
@@ -49,6 +62,7 @@ def index():
 def user(username):
     u = User.query.filter_by(name=username).first()
     collection = u.collections.all()
+    # print(u.collections.count())
 
     for c in collection:
         c.movieurl = 'https://movie.douban.com/subject/{}/'.format(c.movieurl)

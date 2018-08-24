@@ -14,6 +14,7 @@ from functools import partial
 import time
 from retrying import retry
 from app.dbcrawler.rotating_proxies import RoProxy
+import re
 
 
 def get_total_page_num(baseurl, proxies):
@@ -29,7 +30,8 @@ def get_total_page_num(baseurl, proxies):
             soup = BeautifulSoup(r.content, 'html.parser')
             pg_num = int(
                 soup.select(".paginator .thispage")[0]['data-total-page'])
-            return pg_num, proxydct
+            total_mv = int(re.findall('\((.*?)\)', soup.find('title').text)[0])
+            return total_mv, pg_num, proxydct
         except Exception as e:
             proxydct = proxies.get_new_proxydct()
             retry += 1
@@ -181,11 +183,11 @@ def get_movie_detail(mv_urls, proxydct, retry=0):
     return final_mvdetail
 
 
-def get_user_collection(baseurl, proxies):
-    pg_num, proxydct = get_total_page_num(baseurl, proxies)
-    print('Total Pages are {}'.format(pg_num))
+def get_user_collection(baseurl, pg_num, proxydct):
+    # mv_num, pg_num, proxydct = get_total_page_num(baseurl, proxies)
+    # print('Total Pages are {}'.format(pg_num))
     final_mvlst = []
-    print('new proxy', proxydct)
+    # print('new proxy', proxydct)
 
     with ThreadPoolExecutor(max_workers=30) as executor:
         r = executor.map(partial(crawl_single_page, baseurl, proxydct),
@@ -199,7 +201,8 @@ def get_user_collection(baseurl, proxies):
 def main(baseurl):
     proxies = RoProxy()
     t_start = time.time()
-    collection, proxydct = get_user_collection(baseurl, proxies)
+    mv_num, pg_num, proxydct = get_total_page_num(baseurl, proxies)
+    collection, proxydct = get_user_collection(baseurl, pg_num, proxydct)
     t_end = time.time()
     print('Get Collection took {}sec'.format(t_end - t_start))
     mv_urls = [x['mv_url'] for x in collection]
@@ -221,8 +224,10 @@ if __name__ == "__main__":
 
     proxies = RoProxy()
     t_start = time.time()
-    mv, mv_detail = get_user_collection(baseurl, proxies)
+    mv_num, pg_num, proxydct = get_total_page_num(baseurl, proxies)
+    collection, proxydct = get_user_collection(baseurl, pg_num, proxydct)
     t_end = time.time()
     print('Total took {}'.format(t_end - t_start))
+    print(collection)
 #    print(mv)
 #    print(mv_detail)
