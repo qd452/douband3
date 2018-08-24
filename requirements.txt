@@ -9,3 +9,5 @@ flask-migrate
 Flask-Script
 flask-marshmallow
 marshmallow-sqlalchemy
+gunicorn
+psycopg2
