@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/dc@3/dc.css" />
+  <script src="https://unpkg.com/d3@5/dist/d3.js"></script>
+  <script src="https://unpkg.com/crossfilter2@1.4/crossfilter.js"></script>
+  <script src="https://unpkg.com/dc@3/dc.js"></script>
+  <script src="https://rawgit.com/crossfilter/reductio/master/reductio.js"></script>
+  <script src="https://npmcdn.com/universe@latest/universe.js"></script>
+  <style>
+</style>
+</head>
+<!-- python -m SimpleHTTPServer 8888 & -->
+<!-- python -m http.server 8888 -->
+<body>
+
+
+  <div class="container">
+    <!-- <h2> 我看过的电影 Douban Watched Movie Analysis </h2> -->
+
+    <div class="row">
+      <div id="review-count-chart">
+        <strong>By Year of Watch</strong>
+        <a class='reset'
+        href='javascript:yearCountChart.filterAll();dc.redrawAll();'
+        style='display: none;'>reset</a>
+
+        <span class='reset' style='display: none;'>
+          Filter: <span class='filter'></span>
+        </span>
+        <div class="clearfix"></div>
+      </div>
+
+      <div id="my-rating-pie-chart">
+        <strong>By My Rating [PieChart]</strong>
+        <a class='reset'
+        href='javascript:myRatingPieChart.filterAll();dc.redrawAll();'
+        style='display: none;'>reset</a>
+
+        <span class='reset' style='display: none;'>
+          Filter: <span class='filter'></span>
+        </span>
+        <div class="clearfix"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div id="review-month-count-chart">
+        <strong>By Month of Watch</strong>
+        <a class='reset'
+        href='javascript:monthCountChart.filterAll();dc.redrawAll();'
+        style='display: none;'>reset</a>
+
+        <span class='reset' style='display: none;'>
+          Filter: <span class='filter'></span>
+        </span>
+        <div class="clearfix"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="text-align:center" id="my-rating-chart-bar">
+        <strong>By My Rating [BarChart]</strong>
+        <a class="reset" href="javascript:myRatingBarChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+        <div class="clearfix"></div>
+      </div>
+
+      <div style="text-align:center" id="my-rating-chart-row">
+        <strong>By My Rating [RowChart]</strong>
+        <a class="reset" href="javascript:myRatingRowChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+        <div class="clearfix"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="dc-data-count">
+          <span class="filter-count"></span> selected out of <span class="total-count"></span> records | <a
+          href="javascript:dc.filterAll(); dc.renderAll();">Reset All</a>
+        </div>
+      </div>
+      <table class="table table-hover dc-data-table">
+      </table>
+    </div>
+  </div>
+  <script>
+        var mvlist = {{mvlist|safe}};
+        console.log(mvlist);
+   </script>
+  <script type="text/javascript" src="{{ url_for('static', filename = 'js/user.js') }}"></script>
+
+
+</body>

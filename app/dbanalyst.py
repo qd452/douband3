@@ -52,5 +52,6 @@ def user(username):
 
     for c in collection:
         c.movieurl = 'https://movie.douban.com/subject/{}/'.format(c.movieurl)
-
-    return usercollections_schema.jsonify(collection)
+    # usercollections_schema.jsonify(collection)
+    # print(usercollections_schema.dumps(collection, ensure_ascii=False)[:200])
+    return render_template('user.html', mvlist=usercollections_schema.dumps(collection, ensure_ascii=False).data)
