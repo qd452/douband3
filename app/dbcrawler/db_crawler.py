@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import time
 from retrying import retry
-from rotating_proxies import RoProxy
+from app.dbcrawler.rotating_proxies import RoProxy
 
 
 def get_total_page_num(baseurl, proxies):
