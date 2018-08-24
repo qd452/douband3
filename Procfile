@@ -1,1 +1,1 @@
-web: python manage.py db upgrade; gunicorn app:app
+web: python manage.py db upgrade; gunicorn web_runner:app
