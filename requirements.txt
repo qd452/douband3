@@ -12,3 +12,4 @@ marshmallow-sqlalchemy
 gunicorn
 psycopg2
 pandas
+celery
