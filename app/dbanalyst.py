@@ -40,6 +40,7 @@ def index():
             u = User.query.filter_by(name=username).first()
             print(u.id)
             for col in collection:
+                col['mv_url'] = col['mv_url'].rstrip('/').rsplit('/', 1)[1]
                 if not UserCollection.query.filter_by(movieurl=col['mv_url'], user_id=u.id).first():
                     if not Movie.query.filter_by(url=col['mv_url']).first():
                         new_mv_patial_info = Movie(url=col['mv_url'], name=col['name'])
