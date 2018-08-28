@@ -16,3 +16,7 @@ $ python manage.py db --help
 add movies from csv
 
 `python3 manage.py add_movies_batch -c mv_detail.csv`
+
+## Start Celery
+
+`celery worker -A web_runner.celery --loglevel=info`
