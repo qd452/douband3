@@ -5,7 +5,7 @@ from app.config import Config
 from flask_marshmallow import Marshmallow
 from celery import Celery
 
-db = SQLAlchemy()
+db = SQLAlchemy(session_options={"autoflush": False})
 ma = Marshmallow()
 migrate = Migrate()
 celery = Celery(__name__, broker=Config.CELERY_BROKER_URL)
