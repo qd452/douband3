@@ -33,7 +33,8 @@ def crawler_task(self, username):
     mv_num, pg_num, proxydct = get_total_page_num(baseurl, proxies)
 
     if db_collection_num < mv_num:
-        self.update_state(state='PROGRESS', meta={'status': 'Crawling User Collections'})
+        self.update_state(state='PROGRESS',
+                          meta={'status': 'Crawling User Collections'})
         # need to crawl
         # todo: pg_num here can be modified based on the diff btw db_collection_num & mv_num
         collection, proxydct = get_user_collection(baseurl, pg_num, proxydct)
@@ -43,9 +44,11 @@ def crawler_task(self, username):
         print(u.id)
         for col in collection:
             col['mv_url'] = col['mv_url'].rstrip('/').rsplit('/', 1)[1]
-            if not UserCollection.query.filter_by(movieurl=col['mv_url'], user_id=u.id).first():
+            if not UserCollection.query.filter_by(movieurl=col['mv_url'],
+                                                  user_id=u.id).first():
                 if not Movie.query.filter_by(url=col['mv_url']).first():
-                    new_mv_patial_info = Movie(url=col['mv_url'], name=col['name'])
+                    new_mv_patial_info = Movie(url=col['mv_url'],
+                                               name=col['name'])
                     db.session.add(new_mv_patial_info)
                     db.session.commit()
                 newcollection = UserCollection(u.id,
@@ -59,7 +62,8 @@ def crawler_task(self, username):
     collection = u.collections.all()
     print(u.collections.count())
 
-    self.update_state(state='PROGRESS', meta={'status': 'Getting User Collections from DB'})
+    self.update_state(state='PROGRESS',
+                      meta={'status': 'Getting User Collections from DB'})
     for c in collection:
         c.movieurl = 'https://movie.douban.com/subject/{}/'.format(c.movieurl)
 
@@ -90,7 +94,8 @@ def longtask():
         task = crawler_task.apply_async(args=[username])
         print(task.id)
         print(url_for('dbanalyst.taskstatus', task_id=task.id))
-        return jsonify({}), 202, {'Location': url_for('dbanalyst.taskstatus', task_id=task.id)}
+        return jsonify({}), 202, {
+            'Location': url_for('dbanalyst.taskstatus', task_id=task.id)}
 
 
 @dbanalyst.route('/status/<task_id>')
@@ -123,11 +128,17 @@ def taskstatus(task_id):
 @dbanalyst.route('/user/<string:username>', methods=['POST', 'GET'])
 def user(username):
     u = User.query.filter_by(name=username).first()
-    collection = u.collections.all()
-    # print(u.collections.count())
+    if u:
+        collection = u.collections.all()
+        # print(u.collections.count())
 
-    for c in collection:
-        c.movieurl = 'https://movie.douban.com/subject/{}/'.format(c.movieurl)
-    # usercollections_schema.jsonify(collection)
-    # print(usercollections_schema.dumps(collection, ensure_ascii=False)[:200])
-    return render_template('user.html', mvlist=usercollections_schema.dumps(collection, ensure_ascii=False).data)
+        for c in collection:
+            c.movieurl = 'https://movie.douban.com/subject/{}/'.format(
+                c.movieurl)
+        # usercollections_schema.jsonify(collection)
+        # print(usercollections_schema.dumps(collection, ensure_ascii=False)[:200])
+        return render_template('user.html',
+                               mvlist=usercollections_schema.dumps(collection,
+                                                                   ensure_ascii=False).data)
+    else:
+        abort(404)
