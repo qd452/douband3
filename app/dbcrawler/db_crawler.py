@@ -22,11 +22,11 @@ def get_total_page_num(baseurl, proxies):
     # for those movie list <=15, cannot analysis, cause not paginator ....
     proxydct = proxies.get_new_proxydct()
     retry = 0
-    while retry <= 100:
+    while retry <= 30:
         try:
             print(proxydct)
             r = requests.get(baseurl, proxies=proxydct,
-                             timeout=1)  # less timeout means better proxy
+                             timeout=2)  # less timeout means better proxy
             soup = BeautifulSoup(r.content, 'html.parser')
             pg_num = int(
                 soup.select(".paginator .thispage")[0]['data-total-page'])
