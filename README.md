@@ -20,3 +20,9 @@ add movies from csv
 ## Start Celery
 
 `celery worker -A web_runner.celery --loglevel=info`
+
+issues in windows:
+https://github.com/NolanZhao/news_feed/issues/2
+
+make sure the celery version is correct:
+`pip install celery==3.1.17`

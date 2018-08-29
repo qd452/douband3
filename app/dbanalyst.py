@@ -8,72 +8,89 @@ import time
 from app import db, celery
 from app.dbcrawler.db_crawler import RoProxy, get_user_collection, \
     get_total_page_num, get_movie_detail
+from flask import current_app
 
 dbanalyst = Blueprint('dbanalyst', __name__)
 
 
-# @celery.task(bine=True)
-# def crawler_task(self, username):
-#     urlprefix = 'https://movie.douban.com/people/'
-#
-#     u = User.query.filter_by(name=username).first()
-#     if not u:
-#         u = User(username)
-#         db.session.add(u)
-#         db.session.commit()
-#
-#     db_collection_num = u.collections.count()
-#
-#     baseurl = '{}{}/collect'.format(urlprefix, username)
-#
-#     self.update_state(state='PROGRESS', meta={'status': 'Getting Good Proxy'})
-#     proxies = RoProxy()
-#     mv_num, pg_num, proxydct = get_total_page_num(baseurl, proxies)
-#
-#     if db_collection_num < mv_num:
-#         self.update_state(state='PROGRESS', meta={'status': 'Crawling User Collections'})
-#         # need to crawl
-#         # todo: pg_num here can be modified based on the diff btw db_collection_num & mv_num
-#         collection, proxydct = get_user_collection(baseurl, pg_num, proxydct)
-#         print('new', collection)
-#
-#         u = User.query.filter_by(name=username).first()
-#         print(u.id)
-#         for col in collection:
-#             col['mv_url'] = col['mv_url'].rstrip('/').rsplit('/', 1)[1]
-#             if not UserCollection.query.filter_by(movieurl=col['mv_url'], user_id=u.id).first():
-#                 if not Movie.query.filter_by(url=col['mv_url']).first():
-#                     new_mv_patial_info = Movie(url=col['mv_url'], name=col['name'])
-#                     db.session.add(new_mv_patial_info)
-#                     db.session.commit()
-#                 newcollection = UserCollection(u.id,
-#                                                col['mv_url'],
-#                                                col['name'],
-#                                                col['date_view'],
-#                                                col['rating_my'])
-#                 db.session.add(newcollection)
-#                 db.session.commit()
-#
-#     collection = u.collections.all()
-#     # print(u.collections.count())
-#
-#     self.update_state(state='PROGRESS', meta={'status': 'Getting User Collections from DB'})
-#     for c in collection:
-#         c.movieurl = 'https://movie.douban.com/subject/{}/'.format(c.movieurl)
-#
-#     mvlist = usercollections_schema.dumps(collection, ensure_ascii=False).data
-#
-#     return {'result': mvlist, 'status': 'Task completed!'}
+@celery.task(bind=True)
+def crawler_task(self, username):
+    urlprefix = 'https://movie.douban.com/people/'
+
+    print('task started!')
+    u = User.query.filter_by(name=username).first()
+    if not u:
+        u = User(username)
+        db.session.add(u)
+        db.session.commit()
+
+    db_collection_num = u.collections.count()
+
+    baseurl = '{}{}/collect'.format(urlprefix, username)
+
+    self.update_state(state='PROGRESS', meta={'status': 'Getting Good Proxy'})
+    proxies = RoProxy()
+    mv_num, pg_num, proxydct = get_total_page_num(baseurl, proxies)
+
+    if db_collection_num < mv_num:
+        self.update_state(state='PROGRESS', meta={'status': 'Crawling User Collections'})
+        # need to crawl
+        # todo: pg_num here can be modified based on the diff btw db_collection_num & mv_num
+        collection, proxydct = get_user_collection(baseurl, pg_num, proxydct)
+        print('new', collection)
+
+        u = User.query.filter_by(name=username).first()
+        print(u.id)
+        for col in collection:
+            col['mv_url'] = col['mv_url'].rstrip('/').rsplit('/', 1)[1]
+            if not UserCollection.query.filter_by(movieurl=col['mv_url'], user_id=u.id).first():
+                if not Movie.query.filter_by(url=col['mv_url']).first():
+                    new_mv_patial_info = Movie(url=col['mv_url'], name=col['name'])
+                    db.session.add(new_mv_patial_info)
+                    db.session.commit()
+                newcollection = UserCollection(u.id,
+                                               col['mv_url'],
+                                               col['name'],
+                                               col['date_view'],
+                                               col['rating_my'])
+                db.session.add(newcollection)
+                db.session.commit()
+
+    collection = u.collections.all()
+    print(u.collections.count())
+
+    self.update_state(state='PROGRESS', meta={'status': 'Getting User Collections from DB'})
+    for c in collection:
+        c.movieurl = 'https://movie.douban.com/subject/{}/'.format(c.movieurl)
+
+    mvlist = usercollections_schema.dumps(collection, ensure_ascii=False).data
+
+    return {'result': mvlist, 'status': 'Task completed!',
+            'username': username}
 
 
-@dbanalyst.route('/', methods=['POST', 'GET'])
+@dbanalyst.route('/', methods=['GET'])
 def index():
+    # if request.method == 'POST':
+    #     username = request.form['baseurl']  # key is name attr, not id attr
+    #     app = current_app._get_current_object()
+    #     task = crawler_task.apply_async(args=[username])
+    #     print(task.id)
+    #     print(url_for('dbanalyst.taskstatus', task_id=task.id))
+    #     return render_template('base.html'), 202, {'Location': url_for('dbanalyst.taskstatus', task_id=task.id)}
+    # else:
+    return render_template('base.html')
+
+
+@dbanalyst.route('/longtask', methods=['POST'])
+def longtask():
     if request.method == 'POST':
         username = request.form['baseurl']  # key is name attr, not id attr
+        app = current_app._get_current_object()
         task = crawler_task.apply_async(args=[username])
-        return render_template('base.html'), 202, {'Location': url_for('taskstatus', task_id=task.id)}
-    else:
-        return render_template('base.html')
+        print(task.id)
+        print(url_for('dbanalyst.taskstatus', task_id=task.id))
+        return jsonify({}), 202, {'Location': url_for('dbanalyst.taskstatus', task_id=task.id)}
 
 
 @dbanalyst.route('/status/<task_id>')
@@ -90,14 +107,15 @@ def taskstatus(task_id):
             'status': task.info.get('status', '')
         }
         if 'result' in task.info:
-            response['result'] = task.info['result']
+            # response['result'] = task.info['result']
+            response['username'] = task.info['username']
     else:
         response = {
             'state': task.state,
             'status': str(task.info)
         }
 
-    print(response)
+    # print(response)
 
     return jsonify(response)
 
