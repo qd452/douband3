@@ -10,7 +10,7 @@ Flask-Script
 flask-marshmallow
 marshmallow-sqlalchemy
 gunicorn
-psycopg2
+psycopg2-binary
 pandas
 celery
 redis
